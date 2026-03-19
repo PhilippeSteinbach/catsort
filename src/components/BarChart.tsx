@@ -48,8 +48,11 @@ export function BarChart({ bars }: BarChartProps) {
   }, []);
 
   // Maximum emoji width: nearly the full column width.
-  const colWidth = containerWidth / bars.length;
+  const colWidth = containerWidth / Math.max(1, bars.length);
   const maxByCol = Math.max(4, colWidth * 0.96);
+
+  // Normalize bar heights against the actual maximum value so bars never overflow.
+  const maxBarValue = Math.max(1, ...bars.map((b) => b.value));
 
   return (
     <div ref={containerRef} className="flex items-end justify-center w-full h-full gap-0 pb-1">
@@ -59,8 +62,9 @@ export function BarChart({ bars }: BarChartProps) {
 
         // Effective stacked height in em units (first cat: 0.82em, each extra: 0.46em due to overlap).
         const stackedEm = 0.82 + (catCount - 1) * 0.46;
-        // Pixel height this bar occupies.
-        const barHeightPx = (bar.value / 100) * containerHeight;
+        // Pixel height this bar occupies (normalized against max value).
+        const heightPct = (bar.value / maxBarValue) * 100;
+        const barHeightPx = (bar.value / maxBarValue) * containerHeight;
         // Size cats so the stack fills the bar, but never wider than the column.
         const emojiPx = Math.min(maxByCol, Math.max(4, barHeightPx / stackedEm));
 
@@ -70,7 +74,7 @@ export function BarChart({ bars }: BarChartProps) {
             title={`value: ${bar.value}`}
             className="flex flex-col-reverse items-center flex-1 min-w-0 overflow-visible rounded-t-sm"
             style={{
-              height: `${bar.value}%`,
+              height: `${heightPct}%`,
               backgroundColor: COL_BG[bar.state],
               boxShadow: COL_SHADOW[bar.state],
               transition: 'height 60ms linear, background-color 60ms ease',
@@ -83,7 +87,7 @@ export function BarChart({ bars }: BarChartProps) {
                 style={{
                   fontSize: `${emojiPx}px`,
                   lineHeight: 0.82,
-                  marginTop: k === 0 ? 0 : '-0.36em',
+                  marginTop: k < catCount - 1 ? '-0.36em' : 0,
                   display: 'block',
                   userSelect: 'none',
                   filter: `hue-rotate(${bar.colorIdx * 30}deg)`,
