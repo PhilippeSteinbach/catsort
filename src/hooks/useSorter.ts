@@ -36,7 +36,7 @@ export function useSorter(initialSize = 10) {
   });
   const [algorithm, setAlgorithm] = useState<AlgorithmId>('bubble');
   const [arraySize, setArraySizeState] = useState(initialSize);
-  const [speed, setSpeedState] = useState(1); // 1–100
+  const [speed, setSpeedState] = useState(10); // 1–100
   const [audioVolume, setAudioVolumeState] = useState(25); // 0–100
   const [audioRate, setAudioRateState] = useState(100); // 50–200
   const [selectedSoundId, setSelectedSoundIdState] = useState(DEFAULT_SOUND_ID);
@@ -45,6 +45,7 @@ export function useSorter(initialSize = 10) {
 
   const pauseRef = useRef(false);
   const stopRef = useRef(false);
+  const speedRef = useRef(10);
   const startTimeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { playTone, setVolume, setPlaybackRate } = useAudio(soundUrl);
@@ -124,7 +125,8 @@ export function useSorter(initialSize = 10) {
       }
       if (stopRef.current) break;
 
-      const { delay, batchSize } = getStepConfig(speed);
+      const currentSpeed = speedRef.current;
+      const { delay, batchSize } = getStepConfig(currentSpeed);
 
       // Consume up to batchSize steps synchronously, keep only the last one
       let lastStep: import('../types').SortStep | null = null;
@@ -164,13 +166,14 @@ export function useSorter(initialSize = 10) {
       setBars(sortedBars);
 
       const finaleBars = [...sortedBars].sort((a, b) => a.value - b.value);
-      const { delay: stepDelay } = getStepConfig(speed);
-      const finaleGap = speed >= 75
-        ? stepDelay
-        : Math.max(8, Math.round(stepDelay * 0.35));
-
       for (const bar of finaleBars) {
         if (stopRef.current) break;
+
+        const currentSpeed = speedRef.current;
+        const { delay: stepDelay } = getStepConfig(currentSpeed);
+        const finaleGap = currentSpeed >= 75
+          ? stepDelay
+          : Math.max(8, Math.round(stepDelay * 0.35));
 
         setBars(
           sortedBars.map((b) =>
@@ -190,7 +193,7 @@ export function useSorter(initialSize = 10) {
         setStats((s) => ({ ...s, status: 'finished' }));
       }
     }
-  }, [algorithm, bars, speed, playTone]);
+  }, [algorithm, bars, playTone]);
 
   const setArraySize = useCallback(
     (size: number) => {
@@ -203,6 +206,7 @@ export function useSorter(initialSize = 10) {
   );
 
   const setSpeed = useCallback((s: number) => {
+    speedRef.current = s;
     setSpeedState(s);
   }, []);
 
@@ -224,7 +228,8 @@ export function useSorter(initialSize = 10) {
 
   const resetSettings = useCallback(() => {
     setArraySize(10);
-    setSpeedState(1);
+    speedRef.current = 10;
+    setSpeedState(10);
     setAudioVolumeState(25);
     setVolume(0.25);
     setAudioRateState(100);

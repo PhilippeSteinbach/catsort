@@ -42,9 +42,14 @@ export function useAudio(soundUrl: string) {
         const buffer = await getBuffer();
         if (!buffer) return;
 
-        // Map bar value → detune in cents: lowest = −1200 ct, highest = +1200 ct (2 octave range)
-        const t      = maxValue > 0 ? value / maxValue : 0.5;
-        const detune = -1200 + t * 2400;
+        // Map bar value → detune in cents.
+        // Keep high values clear but avoid squeaky extremes.
+        const normalized = maxValue > 1 ? (value - 1) / (maxValue - 1) : 0.5;
+        const t = Math.min(1, Math.max(0, normalized));
+        const shaped = Math.pow(t, 1.18); // compress highs, keep lows expressive
+        const minDetune = -1800; // deeper lows (−1.5 oct)
+        const maxDetune = 1200;  // softer highs (+1 oct)
+        const detune = minDetune + shaped * (maxDetune - minDetune);
 
         const gain = ctx.createGain();
         gain.gain.value = volumeRef.current;

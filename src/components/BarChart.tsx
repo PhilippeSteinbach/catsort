@@ -59,16 +59,28 @@ export function BarChart({ bars }: BarChartProps) {
       {bars.map((bar, idx) => {
         const catCount = Math.max(1, bar.value);
         const face = CAT_FACE[bar.state];
+        const isActiveFinaleBar =
+          bar.state === 'swapping' && bars.every((b) => b === bar || b.state === 'sorted');
 
         // Pixel height this bar occupies (normalized against max value).
         const heightPct = (bar.value / maxBarValue) * 100;
         const barHeightPx = (bar.value / maxBarValue) * containerHeight;
 
-        // Compact overlap stack from bottom to top (same visual density for every pair).
-        const overlapRatio = 0.46;
-        const stackEm = 1 + (catCount - 1) * overlapRatio;
-        const emojiPx = Math.min(maxByCol, Math.max(4, barHeightPx / stackEm));
-        const stepPx = emojiPx * overlapRatio;
+        // One text node per bar: keeps exact cat count with far fewer DOM nodes.
+        const slotPx = barHeightPx / catCount;
+        const emojiPx = Math.min(maxByCol, Math.max(4, slotPx));
+        const lineHeightEm = Math.max(0.1, barHeightPx / (emojiPx * catCount));
+        const stackText = Array(catCount).fill(face).join('\n');
+
+        const activeScaleX = isActiveFinaleBar
+          ? (bars.length >= 80 ? 2.8 : 2.0)
+          : 1;
+        const bgColor = isActiveFinaleBar
+          ? 'rgba(252,129,129,0.38)'
+          : COL_BG[bar.state];
+        const barShadow = isActiveFinaleBar
+          ? '0 0 16px rgba(252,129,129,0.95), inset 0 0 0 2px rgba(255,255,255,0.75)'
+          : COL_SHADOW[bar.state];
 
         return (
           <div
@@ -77,31 +89,42 @@ export function BarChart({ bars }: BarChartProps) {
             className="relative flex-1 min-w-0 overflow-visible rounded-t-sm"
             style={{
               height: `${heightPct}%`,
-              backgroundColor: COL_BG[bar.state],
-              boxShadow: COL_SHADOW[bar.state],
-              transition: 'height 60ms linear, background-color 60ms ease',
+              zIndex: isActiveFinaleBar ? 20 : 1,
+              transition: 'height 60ms linear',
             }}
           >
-            {Array.from({ length: catCount }, (_, k) => (
-              <span
-                key={k}
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  bottom: `${k * stepPx}px`,
-                  left: 0,
-                  right: 0,
-                  fontSize: `${emojiPx}px`,
-                  lineHeight: 0.82,
-                  display: 'block',
-                  textAlign: 'center',
-                  userSelect: 'none',
-                  filter: `hue-rotate(${bar.colorIdx * 30}deg)`,
-                }}
-              >
-                {face}
-              </span>
-            ))}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderTopLeftRadius: '0.125rem',
+                borderTopRightRadius: '0.125rem',
+                backgroundColor: bgColor,
+                boxShadow: barShadow,
+                transform: `scaleX(${activeScaleX})`,
+                transformOrigin: 'center bottom',
+                transition: 'background-color 60ms ease, transform 60ms ease, box-shadow 60ms ease',
+              }}
+            />
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                fontSize: `${emojiPx}px`,
+                lineHeight: lineHeightEm,
+                whiteSpace: 'pre',
+                display: 'block',
+                textAlign: 'center',
+                userSelect: 'none',
+                filter: `hue-rotate(${bar.colorIdx * 30}deg)`,
+              }}
+            >
+              {stackText}
+            </span>
           </div>
         );
       })}
