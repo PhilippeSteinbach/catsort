@@ -57,22 +57,24 @@ export function BarChart({ bars }: BarChartProps) {
   return (
     <div ref={containerRef} className="flex items-end justify-center w-full h-full gap-0 pb-1">
       {bars.map((bar, idx) => {
-        const catCount = Math.max(1, Math.round(bar.value / 5));
+        const catCount = Math.max(1, bar.value);
         const face = CAT_FACE[bar.state];
 
-        // Effective stacked height in em units (first cat: 0.82em, each extra: 0.46em due to overlap).
-        const stackedEm = 0.82 + (catCount - 1) * 0.46;
         // Pixel height this bar occupies (normalized against max value).
         const heightPct = (bar.value / maxBarValue) * 100;
         const barHeightPx = (bar.value / maxBarValue) * containerHeight;
-        // Size cats so the stack fills the bar, but never wider than the column.
-        const emojiPx = Math.min(maxByCol, Math.max(4, barHeightPx / stackedEm));
+
+        // Compact overlap stack from bottom to top (same visual density for every pair).
+        const overlapRatio = 0.46;
+        const stackEm = 1 + (catCount - 1) * overlapRatio;
+        const emojiPx = Math.min(maxByCol, Math.max(4, barHeightPx / stackEm));
+        const stepPx = emojiPx * overlapRatio;
 
         return (
           <div
             key={idx}
             title={`value: ${bar.value}`}
-            className="flex flex-col-reverse items-center flex-1 min-w-0 overflow-visible rounded-t-sm"
+            className="relative flex-1 min-w-0 overflow-visible rounded-t-sm"
             style={{
               height: `${heightPct}%`,
               backgroundColor: COL_BG[bar.state],
@@ -85,10 +87,14 @@ export function BarChart({ bars }: BarChartProps) {
                 key={k}
                 aria-hidden="true"
                 style={{
+                  position: 'absolute',
+                  bottom: `${k * stepPx}px`,
+                  left: 0,
+                  right: 0,
                   fontSize: `${emojiPx}px`,
                   lineHeight: 0.82,
-                  marginTop: k < catCount - 1 ? '-0.36em' : 0,
                   display: 'block',
+                  textAlign: 'center',
                   userSelect: 'none',
                   filter: `hue-rotate(${bar.colorIdx * 30}deg)`,
                 }}
