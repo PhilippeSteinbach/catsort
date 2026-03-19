@@ -19,9 +19,9 @@ export interface CatSound {
 }
 
 export const CAT_SOUNDS: CatSound[] = [
-  { id: 'meow',       label: '🐱 Miau',       url: meow      },
-  { id: 'meow-1',     label: '🐱 Miau 2',     url: meow1     },
-  { id: 'meow-funny', label: '😹 Funny Miau', url: meowFunny },
+  { id: 'meow',       label: '🐱 Meow',       url: meow      },
+  { id: 'meow-1',     label: '🐱 Meow 2',     url: meow1     },
+  { id: 'meow-funny', label: '😹 Funny Meow', url: meowFunny },
   // { id: 'purr',  label: '😸 Schnurren', url: purr  },
   // { id: 'hiss',  label: '🙀 Zischen',   url: hiss  },
 ];

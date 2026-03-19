@@ -55,6 +55,11 @@ export function Controls({
   const isSorting = status === 'sorting';
   const isPaused = status === 'paused';
   const isActive = isSorting || isPaused;
+  const lockReason = isPaused
+    ? 'Controls are locked while paused. Resume or reset to change them.'
+    : isSorting
+      ? 'Controls are locked while sorting. Pause or reset to change them.'
+      : undefined;
 
   return (
     <aside className="flex flex-col gap-5 w-56 flex-shrink-0">
@@ -69,6 +74,7 @@ export function Controls({
               key={algo.id}
               onClick={() => !isActive && onAlgorithm(algo.id)}
               disabled={isActive}
+              title={isActive ? lockReason : undefined}
               className={`px-3 py-2 rounded-lg text-sm font-medium text-left transition-all duration-150 ${
                 algorithm === algo.id
                   ? 'bg-blue-600 text-white glow-blue'
@@ -94,6 +100,7 @@ export function Controls({
             value={arraySize}
             step={5}
             disabled={isActive}
+            disabledReason={lockReason}
             onChange={onArraySize}
           />
           <SliderControl
@@ -126,7 +133,7 @@ export function Controls({
 
           {/* Sound picker */}
           <div>
-            <p className="text-xs text-slate-400 mb-1.5">Katzengeräusch</p>
+            <p className="text-xs text-slate-400 mb-1.5">Cat Sound</p>
             <div className="flex flex-wrap gap-1.5">
               {CAT_SOUNDS.map((s) => (
                 <button
@@ -149,6 +156,7 @@ export function Controls({
             type="button"
             onClick={onResetSettings}
             disabled={isActive}
+            title={isActive ? lockReason : undefined}
             className="w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1a1d2e] text-slate-400 hover:bg-[#222639] hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
           >
             ↺ Reset Settings
@@ -212,6 +220,7 @@ interface SliderControlProps {
   value: number;
   step: number;
   disabled: boolean;
+  disabledReason?: string;
   onChange: (n: number) => void;
 }
 
@@ -222,6 +231,7 @@ function SliderControl({
   value,
   step,
   disabled,
+  disabledReason,
   onChange,
 }: SliderControlProps) {
   const decrease = () => {
@@ -235,13 +245,14 @@ function SliderControl({
   };
 
   return (
-    <div>
+    <div title={disabled ? disabledReason : undefined}>
       <p className="text-xs text-slate-400 mb-1.5">{label}</p>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={decrease}
           disabled={disabled || value <= min}
+          title={disabled ? disabledReason : value <= min ? `${label} is already at minimum.` : undefined}
           className="w-7 h-7 rounded-md bg-[#1a1d2e] text-slate-200 hover:bg-[#222639] disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label={`${label} decrease`}
         >
@@ -261,6 +272,7 @@ function SliderControl({
           type="button"
           onClick={increase}
           disabled={disabled || value >= max}
+          title={disabled ? disabledReason : value >= max ? `${label} is already at maximum.` : undefined}
           className="w-7 h-7 rounded-md bg-[#1a1d2e] text-slate-200 hover:bg-[#222639] disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label={`${label} increase`}
         >
