@@ -27,11 +27,11 @@ export default function App() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">📊</span>
           <h1 className="text-xl font-bold tracking-tight text-white">
-            Sort<span className="text-cyan-400">Viz</span>
+            Cat <span className="text-cyan-400">Sort</span> 🐱
           </h1>
         </div>
         <p className="text-xs text-slate-500 hidden sm:block">
-          Interactive Sorting Algorithm Visualizer
+          Interactive Sorting Algorithm Visualizer – Meow Edition
         </p>
       </header>
 

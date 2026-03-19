@@ -4,36 +4,72 @@ interface BarChartProps {
   bars: Bar[];
 }
 
-const BAR_COLORS: Record<Bar['state'], string> = {
-  default: '#3a4a6b',
-  comparing: '#63b3ed',
-  swapping: '#fc8181',
-  sorted: '#68d391',
-  pivot: '#f6e05e',
+/** Cat emoji for each bar state */
+const CAT_FACE: Record<Bar['state'], string> = {
+  default:   '🐱', // neutral cat
+  comparing: '😸', // grinning cat
+  swapping:  '🙀', // shocked/swapping cat
+  sorted:    '😻', // heart-eyes cat
+  pivot:     '😼', // smirking pivot cat
 };
 
-const BAR_GLOW: Record<Bar['state'], string> = {
-  default: 'none',
-  comparing: '0 0 6px rgba(99,179,237,0.9)',
-  swapping: '0 0 6px rgba(252,129,129,0.9)',
-  sorted: 'none',
-  pivot: '0 0 6px rgba(246,224,94,0.9)',
+/** Glow colour behind the active emoji column */
+const COL_BG: Record<Bar['state'], string> = {
+  default:   'transparent',
+  comparing: 'rgba(99,179,237,0.12)',
+  swapping:  'rgba(252,129,129,0.15)',
+  sorted:    'rgba(104,211,145,0.10)',
+  pivot:     'rgba(246,224,94,0.13)',
+};
+
+const COL_SHADOW: Record<Bar['state'], string> = {
+  default:   'none',
+  comparing: '0 0 8px rgba(99,179,237,0.7)',
+  swapping:  '0 0 8px rgba(252,129,129,0.8)',
+  sorted:    'none',
+  pivot:     '0 0 8px rgba(246,224,94,0.8)',
 };
 
 export function BarChart({ bars }: BarChartProps) {
+  // Derive a font-size for the emoji that keeps cats visible regardless of array size
+  // 150 bars → ~4px column, 10 bars → ~60px column. Cap emoji at 18px, min 7px.
+  const emojiPx = Math.min(18, Math.max(7, Math.floor(600 / bars.length)));
+
   return (
-    <div className="flex items-end justify-center w-full h-full gap-px px-2">
-      {bars.map((bar, idx) => (
-        <div
-          key={idx}
-          className="flex-1 min-w-0 rounded-t-sm transition-all duration-[50ms] ease-linear"
-          style={{
-            height: `${bar.value}%`,
-            backgroundColor: BAR_COLORS[bar.state],
-            boxShadow: BAR_GLOW[bar.state],
-          }}
-        />
-      ))}
+    <div className="flex items-end justify-center w-full h-full gap-px px-1 pb-1">
+      {bars.map((bar, idx) => {
+        const catCount = Math.max(1, Math.round(bar.value / 5));
+        const face = CAT_FACE[bar.state];
+
+        return (
+          <div
+            key={idx}
+            title={`value: ${bar.value}`}
+            className="flex flex-col-reverse items-center flex-1 min-w-0 overflow-hidden rounded-t-sm"
+            style={{
+              height: `${bar.value}%`,
+              backgroundColor: COL_BG[bar.state],
+              boxShadow: COL_SHADOW[bar.state],
+              transition: 'height 60ms linear, background-color 60ms ease',
+            }}
+          >
+            {Array.from({ length: catCount }, (_, k) => (
+              <span
+                key={k}
+                aria-hidden="true"
+                style={{
+                  fontSize: `${emojiPx}px`,
+                  lineHeight: 1,
+                  display: 'block',
+                  userSelect: 'none',
+                }}
+              >
+                {face}
+              </span>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
