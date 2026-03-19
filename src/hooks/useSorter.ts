@@ -112,6 +112,7 @@ export function useSorter(initialSize = 10) {
     setStats({ comparisons: 0, swaps: 0, timeElapsed: 0, status: 'sorting' });
 
     const iter = gen[Symbol.iterator]() as Iterator<import('../types').SortStep>;
+    let latestBars = bars;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -141,13 +142,14 @@ export function useSorter(initialSize = 10) {
       }
 
       if (lastStep) {
-        setBars(lastStep.bars);
+        latestBars = lastStep.bars;
+        setBars(latestBars);
         setStats((s) => ({
           ...s,
-          comparisons: (lastStep as import('../types').SortStep).comparisons,
-          swaps: (lastStep as import('../types').SortStep).swaps,
+          comparisons: lastStep.comparisons,
+          swaps: lastStep.swaps,
         }));
-        if (activeBar) playTone(activeBar.value, maxValue);
+        if (activeBar) void playTone(activeBar.value, maxValue);
       }
 
       if (exhausted) break;
@@ -158,8 +160,35 @@ export function useSorter(initialSize = 10) {
     if (timerRef.current) clearInterval(timerRef.current);
 
     if (!stopRef.current) {
-      setBars((prev) => prev.map((b) => ({ ...b, state: 'sorted' })));
-      setStats((s) => ({ ...s, status: 'finished' }));
+      const sortedBars = latestBars.map((b) => ({ ...b, state: 'sorted' as const }));
+      setBars(sortedBars);
+
+      const finaleBars = [...sortedBars].sort((a, b) => a.value - b.value);
+      const { delay: stepDelay } = getStepConfig(speed);
+      const finaleGap = speed >= 75
+        ? stepDelay
+        : Math.max(8, Math.round(stepDelay * 0.35));
+
+      for (const bar of finaleBars) {
+        if (stopRef.current) break;
+
+        setBars(
+          sortedBars.map((b) =>
+            b === bar ? { ...b, state: 'swapping' as const } : { ...b, state: 'sorted' as const }
+          )
+        );
+
+        void playTone(bar.value, maxValue);
+        if (finaleGap > 0) {
+          await new Promise((r) => setTimeout(r, finaleGap));
+        }
+      }
+
+      setBars(sortedBars);
+
+      if (!stopRef.current) {
+        setStats((s) => ({ ...s, status: 'finished' }));
+      }
     }
   }, [algorithm, bars, speed, playTone]);
 

@@ -36,31 +36,37 @@ export function useAudio(soundUrl: string) {
   }, [soundUrl, getCtx]);
 
   const playTone = useCallback(
-    (value: number, maxValue: number) => {
-      void (async () => {
-        try {
-          const ctx    = getCtx();
-          const buffer = await getBuffer();
-          if (!buffer) return;
+    async (value: number, maxValue: number) => {
+      try {
+        const ctx    = getCtx();
+        const buffer = await getBuffer();
+        if (!buffer) return;
 
-          // Map bar value → detune in cents: lowest = −1200 ct, highest = +1200 ct (2 octave range)
-          const t      = maxValue > 0 ? value / maxValue : 0.5;
-          const detune = -1200 + t * 2400;
+        // Map bar value → detune in cents: lowest = −1200 ct, highest = +1200 ct (2 octave range)
+        const t      = maxValue > 0 ? value / maxValue : 0.5;
+        const detune = -1200 + t * 2400;
 
-          const gain = ctx.createGain();
-          gain.gain.value = volumeRef.current;
-          gain.connect(ctx.destination);
+        const gain = ctx.createGain();
+        gain.gain.value = volumeRef.current;
+        gain.connect(ctx.destination);
 
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.playbackRate.value = playbackRateRef.current;
-          source.detune.value = detune;
-          source.connect(gain);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = playbackRateRef.current;
+        source.detune.value = detune;
+        source.connect(gain);
+
+        await new Promise<void>((resolve) => {
+          source.onended = () => {
+            source.disconnect();
+            gain.disconnect();
+            resolve();
+          };
           source.start(ctx.currentTime);
-        } catch {
-          // Silently ignore audio errors
-        }
-      })();
+        });
+      } catch {
+        // Silently ignore audio errors
+      }
     },
     [getCtx, getBuffer]
   );
