@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f1117;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1d2e;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 2px;
+}
+
+/* Glow effects */
+.glow-blue {
+  box-shadow: 0 0 8px rgba(99, 179, 237, 0.6), 0 0 20px rgba(99, 179, 237, 0.2);
+}
+.glow-cyan {
+  box-shadow: 0 0 8px rgba(103, 232, 249, 0.6), 0 0 20px rgba(103, 232, 249, 0.2);
+}
+.glow-green {
+  box-shadow: 0 0 8px rgba(72, 187, 120, 0.6), 0 0 20px rgba(72, 187, 120, 0.2);
+}
+
+/* Bar transitions */
+.bar-item {
+  transition: height 0.05s ease;
+}
+
+/* Slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #2d3748;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #63b3ed;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(99, 179, 237, 0.8);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: #63b3ed;
+  cursor: pointer;
+}
