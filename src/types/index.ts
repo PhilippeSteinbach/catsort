@@ -3,6 +3,7 @@ export type BarState = 'default' | 'comparing' | 'swapping' | 'sorted' | 'pivot'
 export interface Bar {
   value: number;
   state: BarState;
+  colorIdx: number; // 0–11, maps to hue-rotate steps of 30°
 }
 
 export type AlgorithmId =

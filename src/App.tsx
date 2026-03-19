@@ -10,15 +10,22 @@ export default function App() {
     algorithm,
     arraySize,
     speed,
+    audioVolume,
+    audioRate,
+    selectedSoundId,
     setAlgorithm,
     setArraySize,
     setSpeed,
+    setAudioVolume,
+    setAudioRate,
+    setSelectedSound,
+    resetSettings,
     shuffle,
     reset,
     sort,
     pause,
     resume,
-  } = useSorter(60);
+  } = useSorter(10);
 
   return (
     <div className="flex flex-col h-screen bg-[#0f1117] text-slate-200 overflow-hidden">
@@ -42,10 +49,17 @@ export default function App() {
           algorithm={algorithm}
           arraySize={arraySize}
           speed={speed}
+          audioVolume={audioVolume}
+          audioRate={audioRate}
+          selectedSoundId={selectedSoundId}
           status={stats.status}
           onAlgorithm={setAlgorithm}
           onArraySize={setArraySize}
           onSpeed={setSpeed}
+          onAudioVolume={setAudioVolume}
+          onAudioRate={setAudioRate}
+          onSelectSound={setSelectedSound}
+          onResetSettings={resetSettings}
           onShuffle={shuffle}
           onReset={reset}
           onSort={sort}

@@ -1,77 +1,86 @@
 import { useRef, useCallback } from 'react';
 
-export function useAudio() {
-  const audioCtxRef = useRef<AudioContext | null>(null);
+export function useAudio(soundUrl: string) {
+  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const bufferRef     = useRef<AudioBuffer | null>(null);
+  const soundUrlRef   = useRef<string>('');
+  const volumeRef     = useRef(0.25);
+  const playbackRateRef = useRef(1);
 
   const getCtx = useCallback((): AudioContext => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
       audioCtxRef.current = new AudioContext();
     }
     if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
+      void audioCtxRef.current.resume();
     }
     return audioCtxRef.current;
   }, []);
 
-  /**
-   * Synthesise a short cat-meow sound.
-   * The pitch scales with the bar value so higher bars produce higher-pitched meows.
-   *
-   * @param value     Bar value
-   * @param maxValue  Maximum bar value in the current array
-   */
+  // Decode and cache the AudioBuffer; re-fetch when the sound URL changes.
+  const getBuffer = useCallback(async (): Promise<AudioBuffer | null> => {
+    if (bufferRef.current && soundUrlRef.current === soundUrl) {
+      return bufferRef.current;
+    }
+    try {
+      const ctx = getCtx();
+      const res = await fetch(soundUrl);
+      const raw = await res.arrayBuffer();
+      const decoded = await ctx.decodeAudioData(raw);
+      bufferRef.current = decoded;
+      soundUrlRef.current = soundUrl;
+      return decoded;
+    } catch {
+      return null;
+    }
+  }, [soundUrl, getCtx]);
+
   const playTone = useCallback(
     (value: number, maxValue: number) => {
-      try {
-        const ctx = getCtx();
-        const t = ctx.currentTime;
+      void (async () => {
+        try {
+          const ctx    = getCtx();
+          const buffer = await getBuffer();
+          if (!buffer) return;
 
-        // Map value → base frequency (200 Hz – 900 Hz)
-        const minF = 200;
-        const maxF = 900;
-        const baseFreq = minF + (value / maxValue) * (maxF - minF);
+          // Map bar value → detune in cents: lowest = −1200 ct, highest = +1200 ct (2 octave range)
+          const t      = maxValue > 0 ? value / maxValue : 0.5;
+          const detune = -1200 + t * 2400;
 
-        // --- Main oscillator (sawtooth for cat-like timbre) ---
-        const osc = ctx.createOscillator();
-        osc.type = 'sawtooth';
+          const gain = ctx.createGain();
+          gain.gain.value = volumeRef.current;
+          gain.connect(ctx.destination);
 
-        // Meow pitch contour: swoop up then back down
-        osc.frequency.setValueAtTime(baseFreq * 0.7, t);
-        osc.frequency.linearRampToValueAtTime(baseFreq * 1.35, t + 0.06);
-        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.55, t + 0.22);
-
-        // --- Formant-like bandpass filter (gives nasal "mew" quality) ---
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(baseFreq * 2.2, t);
-        filter.frequency.linearRampToValueAtTime(baseFreq * 1.6, t + 0.22);
-        filter.Q.value = 3.5;
-
-        // --- Amplitude envelope ---
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.18, t + 0.03);   // attack
-        gain.gain.setValueAtTime(0.18, t + 0.10);             // sustain
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24); // release
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(t);
-        osc.stop(t + 0.25);
-      } catch {
-        // Silently ignore audio errors (e.g., autoplay policy restrictions)
-      }
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.playbackRate.value = playbackRateRef.current;
+          source.detune.value = detune;
+          source.connect(gain);
+          source.start(ctx.currentTime);
+        } catch {
+          // Silently ignore audio errors
+        }
+      })();
     },
-    [getCtx]
+    [getCtx, getBuffer]
   );
+
+  const setVolume = useCallback((volume: number) => {
+    volumeRef.current = Math.min(1, Math.max(0, volume));
+  }, []);
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    playbackRateRef.current = Math.min(2, Math.max(0.25, rate));
+  }, []);
 
   const close = useCallback(() => {
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-      audioCtxRef.current.close();
+      void audioCtxRef.current.close();
+      audioCtxRef.current = null;
     }
+    bufferRef.current  = null;
+    soundUrlRef.current = '';
   }, []);
 
-  return { playTone, close };
+  return { playTone, setVolume, setPlaybackRate, close };
 }

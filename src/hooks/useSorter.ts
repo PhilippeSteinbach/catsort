@@ -8,6 +8,7 @@ import {
   quickSort,
 } from '../algorithms';
 import { useAudio } from './useAudio';
+import { CAT_SOUNDS, DEFAULT_SOUND_ID } from '../sounds';
 
 const ALGORITHMS: Record<AlgorithmId, (bars: Bar[]) => Generator<import('../types').SortStep>> = {
   bubble: bubbleSort,
@@ -21,10 +22,11 @@ function generateArray(size: number): Bar[] {
   return Array.from({ length: size }, () => ({
     value: Math.floor(Math.random() * (size - 1)) + 2,
     state: 'default' as const,
+    colorIdx: Math.floor(Math.random() * 12),
   }));
 }
 
-export function useSorter(initialSize = 60) {
+export function useSorter(initialSize = 10) {
   const [bars, setBars] = useState<Bar[]>(() => generateArray(initialSize));
   const [stats, setStats] = useState<SortStats>({
     comparisons: 0,
@@ -34,17 +36,27 @@ export function useSorter(initialSize = 60) {
   });
   const [algorithm, setAlgorithm] = useState<AlgorithmId>('bubble');
   const [arraySize, setArraySizeState] = useState(initialSize);
-  const [speed, setSpeedState] = useState(50); // 1–100
+  const [speed, setSpeedState] = useState(1); // 1–100
+  const [audioVolume, setAudioVolumeState] = useState(25); // 0–100
+  const [audioRate, setAudioRateState] = useState(100); // 50–200
+  const [selectedSoundId, setSelectedSoundIdState] = useState(DEFAULT_SOUND_ID);
+
+  const soundUrl = CAT_SOUNDS.find((s) => s.id === selectedSoundId)?.url ?? CAT_SOUNDS[0].url;
 
   const pauseRef = useRef(false);
   const stopRef = useRef(false);
   const startTimeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { playTone } = useAudio();
+  const { playTone, setVolume, setPlaybackRate } = useAudio(soundUrl);
 
-  const getDelay = (s: number) => {
-    // speed 1 => ~500ms, speed 100 => ~1ms
-    return Math.max(1, Math.round(500 * Math.pow(0.955, s)));
+  // Returns how many steps to process per frame and how long to wait between frames.
+  // At max speed all steps are batched (near-instant), at low speed one step per delay.
+  const getStepConfig = (s: number): { delay: number; batchSize: number } => {
+    if (s >= 99) return { delay: 0, batchSize: 10000 }; // near-instant
+    if (s >= 90) return { delay: 0, batchSize: 200 };
+    if (s >= 75) return { delay: 0, batchSize: 30 };
+    if (s >= 60) return { delay: 4,  batchSize: 6 };
+    return { delay: Math.max(8, Math.round(500 * Math.pow(0.945, s))), batchSize: 1 };
   };
 
   const shuffle = useCallback(() => {
@@ -99,7 +111,10 @@ export function useSorter(initialSize = 60) {
 
     setStats({ comparisons: 0, swaps: 0, timeElapsed: 0, status: 'sorting' });
 
-    for (const step of gen) {
+    const iter = gen[Symbol.iterator]() as Iterator<import('../types').SortStep>;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
       if (stopRef.current) break;
 
       // Wait while paused
@@ -108,22 +123,36 @@ export function useSorter(initialSize = 60) {
       }
       if (stopRef.current) break;
 
-      setBars(step.bars);
-      setStats((s) => ({
-        ...s,
-        comparisons: step.comparisons,
-        swaps: step.swaps,
-      }));
+      const { delay, batchSize } = getStepConfig(speed);
 
-      // Play tone for the last comparing/swapping bar
-      const activeBar = step.bars.find(
-        (b) => b.state === 'swapping' || b.state === 'comparing'
-      );
-      if (activeBar) {
-        playTone(activeBar.value, maxValue);
+      // Consume up to batchSize steps synchronously, keep only the last one
+      let lastStep: import('../types').SortStep | null = null;
+      let activeBar: Bar | undefined;
+      let exhausted = false;
+
+      for (let i = 0; i < batchSize; i++) {
+        const result = iter.next();
+        if (result.done) { exhausted = true; break; }
+        lastStep = result.value;
+        const ab = result.value.bars.find(
+          (b) => b.state === 'swapping' || b.state === 'comparing'
+        );
+        if (ab) activeBar = ab;
       }
 
-      await new Promise((r) => setTimeout(r, getDelay(speed)));
+      if (lastStep) {
+        setBars(lastStep.bars);
+        setStats((s) => ({
+          ...s,
+          comparisons: (lastStep as import('../types').SortStep).comparisons,
+          swaps: (lastStep as import('../types').SortStep).swaps,
+        }));
+        if (activeBar) playTone(activeBar.value, maxValue);
+      }
+
+      if (exhausted) break;
+
+      await new Promise((r) => setTimeout(r, delay));
     }
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -148,15 +177,48 @@ export function useSorter(initialSize = 60) {
     setSpeedState(s);
   }, []);
 
+  const setAudioVolume = useCallback(
+    (v: number) => {
+      setAudioVolumeState(v);
+      setVolume(v / 100);
+    },
+    [setVolume]
+  );
+
+  const setAudioRate = useCallback(
+    (r: number) => {
+      setAudioRateState(r);
+      setPlaybackRate(r / 100);
+    },
+    [setPlaybackRate]
+  );
+
+  const resetSettings = useCallback(() => {
+    setArraySize(10);
+    setSpeedState(1);
+    setAudioVolumeState(25);
+    setVolume(0.25);
+    setAudioRateState(100);
+    setPlaybackRate(1);
+    setSelectedSoundIdState(DEFAULT_SOUND_ID);
+  }, [setArraySize, setVolume, setPlaybackRate]);
+
   return {
     bars,
     stats,
     algorithm,
     arraySize,
     speed,
+    audioVolume,
+    audioRate,
+    selectedSoundId,
     setAlgorithm,
     setArraySize,
     setSpeed,
+    setAudioVolume,
+    setAudioRate,
+    setSelectedSound: setSelectedSoundIdState,
+    resetSettings,
     shuffle,
     reset,
     sort,
